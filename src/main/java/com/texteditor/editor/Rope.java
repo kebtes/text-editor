@@ -4,7 +4,7 @@ public class Rope {
     RopeNode root;
 
     public Rope(String text){
-        root = new RopeNode(text);
+        root = new RopeNode(text != null ? text : "");
     }
 
     public Rope(RopeNode node){
@@ -42,14 +42,16 @@ public class Rope {
     }
 
     public void insert(int indexToInsert, String newString){
-        if (indexToInsert < 0 || indexToInsert > root.getTotalWeight()){
+        if (indexToInsert < 0 || indexToInsert > getStringSize()){
             throw new IndexOutOfBoundsException("IndexToInsert out of bounds.");
         }
 
-//        Split the rope
-//        Create a new node for the string
-//        concat the new string with the right side of the split rope
-//        concat the left side of the split rope with the modified right side
+        if (newString.isEmpty()) return;
+
+        if (root == null || root.isEmpty()) {
+            root = new RopeNode(newString);
+            return;
+        }
 
         RopeNode[] splitRopes = split(indexToInsert);
         RopeNode newStringRopeNode = new RopeNode(newString);
@@ -74,21 +76,17 @@ public class Rope {
             throw new IndexOutOfBoundsException("Invalid index range to perform substring.");
         }
 
-//        RopeNode[] rope1 = split(startingIndex);
-//
-//        if (startingIndex == endingIndex){
-//            return new Rope(rope1[1].getData().substring(0, 1));
-//        }
-//
-//        RopeNode[] rope2 = split(endingIndex + 1);
-//
-//        return new Rope(concat(rope1[1], rope2[0]));
+        if (root == null || root.isEmpty()){
+            return new Rope("");
+        }
 
-        String sub = root.getData().substring(startingIndex, endingIndex);
-        return new Rope(sub);
+        RopeNode[] leftSplit = split(startingIndex);
+        RopeNode[] rightSplit = split(endingIndex + 1);
+
+        return new Rope(leftSplit[1]);
     }
 
-    private RopeNode[] split(int splitIndex){
+    public RopeNode[] split(int splitIndex){
         if (splitIndex < 0 || splitIndex > root.getTotalWeight()){
             throw new IndexOutOfBoundsException("SplitIndex out of bounds");
         }
@@ -102,29 +100,79 @@ public class Rope {
             String rightPartString = node.getData().substring(idx);
 
             return new RopeNode[]{new RopeNode(leftPartString), new RopeNode(rightPartString)};
+
+        }
+
+        if (idx < node.getWeight()){
+            RopeNode[] leftSplit = splitRecursive(node.getLeftNode(), idx);
+
+            return new RopeNode[]{leftSplit[0], new RopeNode(leftSplit[1], node.getRightNode())};
+
         } else{
-            if (idx < node.getWeight()){
-                RopeNode[] leftSplit = splitRecursive(node.getLeftNode(), idx);
+            idx -= node.getWeight();
+            RopeNode[] rightSplit = splitRecursive(node.getRightNode(), idx);
 
-                return new RopeNode[]{leftSplit[0], new RopeNode(leftSplit[1], node.getRightNode())};
-            } else{
-                idx -= node.getWeight();
-                RopeNode[] rightSplit = splitRecursive(node.getRightNode(), idx);
+            return new RopeNode[]{new RopeNode(node.getLeftNode(), rightSplit[0]), rightSplit[1]};
+        }
 
-                return new RopeNode[]{new RopeNode(node.getLeftNode(), rightSplit[0]), rightSplit[1]};
+    }
+
+    public String getRopeData(){
+        return root != null ? getRopeDataRecursive(root) : "";
+    }
+
+    private String getRopeDataRecursive(RopeNode node) {
+        if (node == null) {
+            return "";
+        }
+
+        if (node.isLeaf()) {
+            return node.getData();
+        }
+
+        return getRopeDataRecursive(node.getLeftNode()) + getRopeDataRecursive(node.getRightNode());
+    }
+
+    public int getStringSize(){
+        return root != null ? root.getTotalWeight() : 0;
+    }
+
+    public void append(String newString){
+        if (newString == null || newString.isEmpty()) {
+             return;
+        }
+
+        RopeNode newRopeNode = new RopeNode(newString);
+
+        if (isEmpty()){
+            root = newRopeNode;
+        } else {
+            root= concat(root, newRopeNode);
+        }
+    }
+
+    public boolean isEmpty(){
+        return root == null;
+    }
+
+    public void backspace(){
+        if (!isEmpty()){
+            if (getStringSize() == 1){
+                root = new RopeNode("");
+            }else{
+                int newLength = getStringSize() - 1;
+                RopeNode[] splitNodes = split(newLength);
+                root = splitNodes[0];
             }
         }
     }
 
-    public String getRopeData(){
-        return getRopeDataRecursive(root);
-    }
-
-    private String getRopeDataRecursive(RopeNode node){
-        if (node.isLeaf()){
-            return node.getData();
+    public String peakLastChar(){
+        if (isEmpty()){
+            return "";
         }
-        return getRopeDataRecursive(node.getLeftNode()) + getRopeDataRecursive(node.getRightNode());
-    }
 
+        String data = getRopeData();
+        return data.substring(Math.max(0, data.length() - 1));
+    }
 }

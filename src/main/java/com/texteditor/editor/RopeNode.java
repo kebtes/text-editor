@@ -1,22 +1,20 @@
 package com.texteditor.editor;
 
 public class RopeNode {
-    private RopeNode left , right;
+    private RopeNode left;
+    private RopeNode right;
     private String data;
     private int weight;
 
     public RopeNode(String data){
-        this.data = data;
-        this.weight = data.length();
-        this.left = null;
-        this.right = null;
+        this.data = data != null ? data : "";
+        this.weight = this.data.length();
     }
 
     public RopeNode(RopeNode left, RopeNode right){
         this.left = left;
         this.right = right;
-        this.weight = (left != null) ? left.getTotalWeight(): 0;
-        this.data = null;
+        this.weight = (left != null) ? left.getTotalWeight() : 0;
     }
 
     public int getWeight(){
@@ -32,7 +30,7 @@ public class RopeNode {
     }
 
     public boolean isLeaf(){
-        return this.left == null && this.right == null;
+        return left == null && right == null;
     }
 
     public int getTotalWeight(){
@@ -41,11 +39,11 @@ public class RopeNode {
     }
 
     public String getData(){
-        return this.data;
+        return data != null ? data : "";
     }
 
-    public void setWeight(int weight) {
-        this.weight = weight;
+    public boolean isEmpty(){
+        return getData().isEmpty();
     }
 }
 
