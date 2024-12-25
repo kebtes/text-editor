@@ -4,35 +4,44 @@ import com.texteditor.editor.Rope;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.paint.Color;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
 import javafx.scene.input.KeyEvent;
+
 import java.util.List;
 import java.util.ArrayList;
 
 public class CustomTextArea extends Canvas {
     private static final int FONT_SIZE = 15;
     private final Rope rope;
+
+    // cursor related
     private boolean cursorVisible = true;
     private double cursorX = 0;
     private double cursorY = 0;
+
     private TextChangeListener textChangeListener;
     private final Text textMetrics;
     private final List<LineInfo> wrappedLines = new ArrayList<>();
 
+    // Interface for listening to the text change
     public interface TextChangeListener {
         void onTextChanged(String newText);
     }
 
     public CustomTextArea(Rope rope) {
+        final int WINDOW_WIDTH = 710;
+        final int WINDOW_HEIGHT = 513;
+
         this.rope = rope;
         this.textMetrics = new Text();
 
-        setWidth(710);
-        setHeight(513);
+        setWidth(WINDOW_WIDTH);
+        setHeight(WINDOW_HEIGHT);
         setFocusTraversable(true);
 
         setupCursorBlink();
@@ -40,9 +49,11 @@ public class CustomTextArea extends Canvas {
         renderContent();
     }
 
+    // Sets up a blinking animation for the cursor
     private void setupCursorBlink() {
+        final int CURSOR_BLINK_SCD = 350;
         Timeline timeline = new Timeline(new KeyFrame(
-                Duration.millis(500),
+                Duration.millis(CURSOR_BLINK_SCD),
                 event -> {
                     cursorVisible = !cursorVisible;
                     renderContent();
@@ -52,41 +63,31 @@ public class CustomTextArea extends Canvas {
         timeline.play();
     }
 
+    // Sets up event handlers for keyboard and mouse inputs
     private void setupEventHandlers() {
+
+        // handles when a character is typed
         addEventHandler(KeyEvent.KEY_TYPED, event -> {
             String character = event.getCharacter();
+            String validCharacters = ".,!?-():;/\\@#$%&*+=<>[]{}|`~^";
+
             if (!character.isEmpty() && (Character.isLetterOrDigit(character.charAt(0))
-                    || Character.isWhitespace(character.charAt(0))
-                    || character.charAt(0) == '.'
-                    || character.charAt(0) == ','
-                    || character.charAt(0) == '!'
-                    || character.charAt(0) == '?'
-                    || character.charAt(0) == '-'
-                    || character.charAt(0) == '('
-                    || character.charAt(0) == ')'
-                    || character.charAt(0) == ':'
-                    || character.charAt(0) == ';'
-                    || character.charAt(0) == '/'
-                    || character.charAt(0) == '\\'
-                    || character.charAt(0) == '@'
-                    || character.charAt(0) == '#'
-                    || character.charAt(0) == '$'
-                    || character.charAt(0) == '%'
-                    || character.charAt(0) == '&'
-                    || character.charAt(0) == '*'
-                    || character.charAt(0) == '+'
-                    || character.charAt(0) == '='
-                    || character.charAt(0) == '<'
-                    || character.charAt(0) == '>'
-                    || character.charAt(0) == '['
-                    || character.charAt(0) == ']'
-                    || character.charAt(0) == '{'
-                    || character.charAt(0) == '}'
-                    || character.charAt(0) == '|'
-                    || character.charAt(0) == '`'
-                    || character.charAt(0) == '~'
-                    || character.charAt(0) == '^')) {
-                rope.append(character);
+                    || Character.isWhitespace(character.charAt(0)) || validCharacters.contains(character)))
+                     {
+
+                // Calculate the position to insert
+                // Could be in the middle
+                int posToInsert = 0;
+
+                // all chars of every line except this current one
+                for (int idx = 0; idx < cursorY / FONT_SIZE - 1; idx ++) {
+                    posToInsert += getCharsAtY(idx);
+                }
+
+                // add all the chars on the current line up until the cursor
+                posToInsert += getCharsUpToX();
+
+                rope.insert(posToInsert, character);
                 updateCursorIncrementX(getTextWidth(character));
                 notifyTextChanged();
                 renderContent();
@@ -98,7 +99,7 @@ public class CustomTextArea extends Canvas {
                 case BACK_SPACE -> {
                     if (!rope.isEmpty()) {
                         String lastChar = rope.peakLastChar();
-                        rope.backspace();
+                        rope.backspace(getCharsUpToX());
                         updateCursorDecrementX(getTextWidth(lastChar));
                         notifyTextChanged();
                         renderContent();
@@ -119,9 +120,26 @@ public class CustomTextArea extends Canvas {
                     updateCursorIncrementY();
                     renderContent();
                 }
+                case LEFT -> {
+                    if (cursorX > 0) {
+                        int pos = getCharsUpToX();
+                        updateCursorDecrementX(getTextWidth(rope.substring(pos - 1, pos).getRopeData()));
+                    }
+                }
+                case RIGHT -> {
+                    int pos = getCharsUpToX();
+
+                    if (cursorX / getTextWidth("A") < rope.getStringSize()) {
+                        String nextChar = rope.substring(pos, pos + 1).getRopeData();
+                        System.out.println(nextChar);
+
+                        updateCursorIncrementX(getTextWidth(nextChar));
+                    }
+                }
             }
         });
 
+        // handles when a mouse clicks inside the text area to update the cursor position
         setOnMouseClicked(event -> {
             requestFocus();
             double clickX = event.getX();
@@ -143,14 +161,19 @@ public class CustomTextArea extends Canvas {
         }
     }
 
+    // Renders the text content and cursor on the canvas
     private void renderContent() {
+        for (LineInfo l: wrappedLines) {
+            System.out.println(l.content.length());
+        }
+
         GraphicsContext gc = getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
 
         gc.setFill(Color.WHITE);
         gc.fillRect(0, 0, getWidth(), getHeight());
 
-        gc.setFont(Font.font("Geist", FONT_SIZE));
+        gc.setFont(Font.font("Monospaced", FontWeight.BOLD, FONT_SIZE));
         gc.setFill(Color.BLACK);
 
         wrappedLines.clear();
@@ -165,12 +188,15 @@ public class CustomTextArea extends Canvas {
             for (String word : words) {
                 double wordWidth = getTextWidth(word);
 
+                // check if appending at the moment is going to result in a wordwrap
+                // update the cursor positions
                 if (x + wordWidth > getWidth()) {
                     wrappedLines.add(new LineInfo(0, y, currentLine.toString()));
                     gc.fillText(currentLine.toString(), 0, y);
                     y += FONT_SIZE + 5;
                     currentLine = new StringBuilder(word);
                     x = wordWidth;
+
                 } else {
                     currentLine.append(word);
                     x += wordWidth;
@@ -182,10 +208,9 @@ public class CustomTextArea extends Canvas {
             y += FONT_SIZE + 5;
         }
 
-        updateCursorBasedOnWrappedLines();
-
+        // draw the cursor if its currently visible
         if (cursorVisible) {
-            gc.setStroke(Color.DARKGRAY);
+            gc.setStroke(Color.BLACK);
             gc.strokeLine(cursorX, cursorY, cursorX, cursorY + FONT_SIZE);
         }
     }
@@ -194,14 +219,17 @@ public class CustomTextArea extends Canvas {
         this.textChangeListener = listener;
     }
 
+    // Font metrics calculation
+    // Returns the width of a string in decimals
     private double getTextWidth(String text) {
         textMetrics.setText(text);
-        textMetrics.setFont(Font.font("Geist Light", FONT_SIZE));
+        textMetrics.setFont(Font.font("Monospaced", FONT_SIZE));
         return textMetrics.getLayoutBounds().getWidth();
     }
 
+    // Moves the X position of the cursor to the right
     private void updateCursorIncrementX(double width) {
-        if (cursorX + width >= getWidth()) {
+        if (cursorX + width > getWidth() && cursorY + FONT_SIZE + 5 < getHeight()) {
             cursorX = 0;
             updateCursorIncrementY();
         } else {
@@ -209,37 +237,45 @@ public class CustomTextArea extends Canvas {
         }
     }
 
+    // Moves the Y position of the cursor to the right
     private void updateCursorIncrementY() {
         cursorY += FONT_SIZE + 5;
     }
 
+    // Moves the Y position of the cursor to the left
     private void updateCursorDecrementY() {
         if (cursorY > 0) {
             cursorY = Math.max(0, cursorY - (FONT_SIZE + 5));
         }
     }
 
+    // Moves the X position of the cursor to the left
     private void updateCursorDecrementX(double width) {
         if (cursorX - width < 0 && cursorY > 0) {
-            cursorY -= FONT_SIZE + 5;
-            String[] lines = rope.getRopeData().split("\n");
-            int currentLine = (int) (cursorY / (FONT_SIZE + 5));
-            if (currentLine >= 0 && currentLine < lines.length) {
-                cursorX = getTextWidth(lines[currentLine]);
-            } else {
-                cursorX = 0;
-            }
+            cursorY -= (FONT_SIZE + 5);
+            cursorX = getCharsAtY((int) cursorY);
+
         } else {
-            cursorX = Math.max(0, cursorX - width);
+            cursorX -= getTextWidth("A");
         }
     }
 
-    private double getLastLineWidth() {
-        if (rope.isEmpty()) return 0;
-        String[] lines = rope.getRopeData().split("\n");
-        return getTextWidth(lines[lines.length - 1]);
+    // Returns the character count on a given row
+    private int getCharsAtY(int y) {
+        for (int i = 0; i < wrappedLines.size(); i++) {
+            if (i == y) return wrappedLines.get(i).content.length();
+        }
+
+        return 0;
     }
 
+    // Returns the number of characters up until the X pos of the cursor, on the current row
+    // This method is HARDCODED as the font used for the text area is monospaced
+    private int getCharsUpToX() {
+        return (int) (cursorX / getTextWidth("A"));
+    }
+
+    // Returns the rope size
     public int getStringSize() {
         return rope.getStringSize();
     }
@@ -247,21 +283,6 @@ public class CustomTextArea extends Canvas {
     private void notifyTextChanged() {
         if (textChangeListener != null) {
             textChangeListener.onTextChanged(rope.getRopeData());
-        }
-    }
-
-    private void updateCursorBasedOnWrappedLines() {
-        int totalChars = 0;
-        String text = rope.getRopeData();
-
-        for (LineInfo line : wrappedLines) {
-            int lineLength = line.content.length();
-            if (totalChars + lineLength >= text.length()) {
-                cursorX = getTextWidth(text.substring(totalChars));
-                cursorY = line.y - FONT_SIZE;
-                break;
-            }
-            totalChars += lineLength;
         }
     }
 
