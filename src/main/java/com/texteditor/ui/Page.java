@@ -1,107 +1,79 @@
 package com.texteditor.ui;
 
 import com.texteditor.editor.Rope;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import javafx.geometry.Insets;
 
-import javax.swing.*;
-import java.awt.*;
+public class Page {
+    private static final int WINDOW_WIDTH = 800;
+    private static final int WINDOW_HEIGHT = 838;
+    private final Label characterCount;
 
-public class Page extends JFrame {
-    Rope rope;
+    public Page(Rope rope, Stage primaryStage) {
 
-    public Page(Rope rope) {
-        this.rope = rope;
+        BorderPane root = new BorderPane();
 
-        int FRAME_WIDTH = 800;
-        int FRAME_HEIGHT = 838;
-        CustomTextArea textArea;
+        MenuBar menuBar = createMenuBar();
+        root.setTop(menuBar);
 
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(FRAME_WIDTH, FRAME_HEIGHT);
-        setLayout(new BorderLayout());
-        setResizable(false);
+        VBox body = new VBox(10);
+        body.setPadding(new Insets(20));
+        body.setStyle("-fx-background-color: white;");
 
-        JMenuBar menuBar = new JMenuBar();
-        menuBar.setBackground(Color.WHITE);
-        menuBar.setFont(UiConstants.getArialRegularFont(8));
-        menuBar.setLayout(new FlowLayout(FlowLayout.LEFT));
-        menuBar.setBorderPainted(false);
+        Label titleLabel = new Label("TITLE");
+        titleLabel.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 9px; -fx-text-fill: #666666;");
 
-        UiConstants.menuBarItems.forEach((menuString, menuItems) -> {
-            JMenu menu = new JMenu(menuString);
-            menu.setBackground(UiConstants.ACCENT_BLUE);
-            menu.setForeground(UiConstants.BLUE_COLOR);
-            menu.setFont(UiConstants.getArialRegularFont(12));
-            menu.setForeground(Color.BLACK);
+        Label documentTitle = new Label("Sample Document Title");
+        documentTitle.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #585BFF;");
 
-            for (String item : menuItems) {
-                JMenuItem menuItem = new JMenuItem(item);
-                menuItem.setOpaque(true);
-                menu.add(menuItem);
-            }
+        CustomTextArea textArea = new CustomTextArea(rope);
 
-            menuBar.add(menu);
-        });
+        BorderPane footer = new BorderPane();
+        footer.setStyle("-fx-background-color: #585BFF; -fx-padding: 10px;");
 
-        setJMenuBar(menuBar);
+        characterCount = new Label(textArea.getStringSize() + " chars");
+        characterCount.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 11px; -fx-text-fill: white;");
+        footer.setRight(characterCount);
 
-        // body
-        JPanel body = new JPanel();
-        body.setBackground(UiConstants.WHITE_COLOR);
-        body.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 100));
-        body.setLayout(null);
+        textArea.setTextChangeListener(newText ->
+                characterCount.setText(newText.length() + " chars")
+        );
 
-//      TITLE LABEL SECTION
-        JLabel titleTextLabel = new JLabel("TITLE");
-        titleTextLabel.setFont(UiConstants.getGeistSemiBold(9));
-        titleTextLabel.setForeground(UiConstants.TEXT_LIGHT_GREY_COLOR);
-        titleTextLabel.setBounds(33, 46, 25, 12);
+        body.getChildren().addAll(titleLabel, documentTitle, textArea);
 
-        JLabel documentTitleTextLabel = new JLabel("Sample Document Title");
-        documentTitleTextLabel.setFont(UiConstants.getGeistSemiBold(18));
-        documentTitleTextLabel.setForeground(UiConstants.BLUE_COLOR);
-        documentTitleTextLabel.setBounds(32, 70, 300, 17);
+        root.setCenter(body);
+        root.setBottom(footer);
 
-        JSeparator horizontalLine = new JSeparator();
-        horizontalLine.setBackground(UiConstants.TEXT_LIGHT_GREY_COLOR);
-        horizontalLine.setBounds(33, 100, 710, 1);
+        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.setTitle("Text Editor");
+        primaryStage.show();
 
-//        custom text area field
-        textArea = new CustomTextArea(rope);
-        textArea.setForeground(UiConstants.TEXT_AREA_COLOR);
-        textArea.setBounds(33, 145, 710, 513);
-        textArea.setBackground(Color.WHITE);
-
-        body.add(textArea);
-        body.add(horizontalLine);
-        body.add(titleTextLabel);
-        body.add(documentTitleTextLabel);
-
-        // footer
-        JPanel footer = new JPanel();
-        footer.setBackground(UiConstants.BLUE_COLOR);
-        footer.setPreferredSize(new Dimension(FRAME_WIDTH, 40));
-        footer.setLayout(null);
-
-        JLabel characterCount = new JLabel();
-        characterCount.setText(textArea.getStringSize() + " chars");
-        characterCount.setForeground(Color.WHITE);
-        characterCount.setFont(UiConstants.getGeistLight(11));
-        characterCount.setBounds(600, 18, 180, 10);
-        characterCount.setHorizontalAlignment(SwingConstants.RIGHT);
-
-        textArea.setTextChangeListener(newText -> {
-            characterCount.setText(newText.length() + " chars");
-        });
-
-        footer.add(characterCount);
-
-//        add(header, BorderLayout.NORTH);
-        add(body, BorderLayout.NORTH);
-        add(footer, BorderLayout.SOUTH);
-
-        revalidate();
-        setVisible(true);
+        // Request focus for the text area
+        textArea.requestFocus();
     }
 
+    private MenuBar createMenuBar() {
+        MenuBar menuBar = new MenuBar();
+        menuBar.setStyle("-fx-background-color: white;");
 
+        UiConstants.menuBarItems.forEach((menuString, menuItems) -> {
+            Menu menu = new Menu(menuString);
+            menu.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 12px;");
+
+            menuItems.forEach(itemString -> {
+                MenuItem item = new MenuItem(itemString);
+                menu.getItems().add(item);
+            });
+
+            menuBar.getMenus().add(menu);
+        });
+
+        return menuBar;
+    }
 }

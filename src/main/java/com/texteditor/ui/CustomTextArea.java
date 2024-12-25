@@ -1,322 +1,289 @@
 package com.texteditor.ui;
 
 import com.texteditor.editor.Rope;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.paint.Color;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+import javafx.scene.input.KeyEvent;
+import java.util.List;
+import java.util.ArrayList;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-
-public class CustomTextArea extends JPanel{
-//    private String customText = "";
-    private int fontSize = 14;
+public class CustomTextArea extends Canvas {
+    private static final int FONT_SIZE = 15;
+    private final Rope rope;
     private boolean cursorVisible = true;
-    private Rope rope = new Rope("");
-
-    private FontMetrics fontMetrics;
-
-    private int cursorX = 0;
-    private int cursorY = 0;
-
+    private double cursorX = 0;
+    private double cursorY = 0;
     private TextChangeListener textChangeListener;
+    private final Text textMetrics;
+    private final List<LineInfo> wrappedLines = new ArrayList<>();
 
-    @FunctionalInterface
     public interface TextChangeListener {
         void onTextChanged(String newText);
     }
 
-    public void setTextChangeListener(TextChangeListener listener){
+    public CustomTextArea(Rope rope) {
+        this.rope = rope;
+        this.textMetrics = new Text();
+
+        setWidth(710);
+        setHeight(513);
+        setFocusTraversable(true);
+
+        setupCursorBlink();
+        setupEventHandlers();
+        renderContent();
+    }
+
+    private void setupCursorBlink() {
+        Timeline timeline = new Timeline(new KeyFrame(
+                Duration.millis(500),
+                event -> {
+                    cursorVisible = !cursorVisible;
+                    renderContent();
+                }
+        ));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
+    }
+
+    private void setupEventHandlers() {
+        addEventHandler(KeyEvent.KEY_TYPED, event -> {
+            String character = event.getCharacter();
+            if (!character.isEmpty() && (Character.isLetterOrDigit(character.charAt(0))
+                    || Character.isWhitespace(character.charAt(0))
+                    || character.charAt(0) == '.'
+                    || character.charAt(0) == ','
+                    || character.charAt(0) == '!'
+                    || character.charAt(0) == '?'
+                    || character.charAt(0) == '-'
+                    || character.charAt(0) == '('
+                    || character.charAt(0) == ')'
+                    || character.charAt(0) == ':'
+                    || character.charAt(0) == ';'
+                    || character.charAt(0) == '/'
+                    || character.charAt(0) == '\\'
+                    || character.charAt(0) == '@'
+                    || character.charAt(0) == '#'
+                    || character.charAt(0) == '$'
+                    || character.charAt(0) == '%'
+                    || character.charAt(0) == '&'
+                    || character.charAt(0) == '*'
+                    || character.charAt(0) == '+'
+                    || character.charAt(0) == '='
+                    || character.charAt(0) == '<'
+                    || character.charAt(0) == '>'
+                    || character.charAt(0) == '['
+                    || character.charAt(0) == ']'
+                    || character.charAt(0) == '{'
+                    || character.charAt(0) == '}'
+                    || character.charAt(0) == '|'
+                    || character.charAt(0) == '`'
+                    || character.charAt(0) == '~'
+                    || character.charAt(0) == '^')) {
+                rope.append(character);
+                updateCursorIncrementX(getTextWidth(character));
+                notifyTextChanged();
+                renderContent();
+            }
+        });
+
+        addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+            switch (event.getCode()) {
+                case BACK_SPACE -> {
+                    if (!rope.isEmpty()) {
+                        String lastChar = rope.peakLastChar();
+                        rope.backspace();
+                        updateCursorDecrementX(getTextWidth(lastChar));
+                        notifyTextChanged();
+                        renderContent();
+                    }
+                }
+                case ENTER -> {
+                    rope.append("\n");
+                    cursorX = 0;
+                    updateCursorIncrementY();
+                    notifyTextChanged();
+                    renderContent();
+                }
+                case UP -> {
+                    updateCursorDecrementY();
+                    renderContent();
+                }
+                case DOWN -> {
+                    updateCursorIncrementY();
+                    renderContent();
+                }
+            }
+        });
+
+        setOnMouseClicked(event -> {
+            requestFocus();
+            double clickX = event.getX();
+            double clickY = event.getY();
+            updateCursorPosition(clickX, clickY);
+            renderContent();
+        });
+    }
+
+    private static class LineInfo {
+        double x;
+        double y;
+        String content;
+
+        LineInfo(double x, double y, String content) {
+            this.x = x;
+            this.y = y;
+            this.content = content;
+        }
+    }
+
+    private void renderContent() {
+        GraphicsContext gc = getGraphicsContext2D();
+        gc.clearRect(0, 0, getWidth(), getHeight());
+
+        gc.setFill(Color.WHITE);
+        gc.fillRect(0, 0, getWidth(), getHeight());
+
+        gc.setFont(Font.font("Geist", FONT_SIZE));
+        gc.setFill(Color.BLACK);
+
+        wrappedLines.clear();
+        String[] lines = rope.getRopeData().split("\n");
+        double y = FONT_SIZE;
+
+        for (String line : lines) {
+            String[] words = line.split("(?<=\\s)");
+            StringBuilder currentLine = new StringBuilder();
+            double x = 0;
+
+            for (String word : words) {
+                double wordWidth = getTextWidth(word);
+
+                if (x + wordWidth > getWidth()) {
+                    wrappedLines.add(new LineInfo(0, y, currentLine.toString()));
+                    gc.fillText(currentLine.toString(), 0, y);
+                    y += FONT_SIZE + 5;
+                    currentLine = new StringBuilder(word);
+                    x = wordWidth;
+                } else {
+                    currentLine.append(word);
+                    x += wordWidth;
+                }
+            }
+
+            wrappedLines.add(new LineInfo(0, y, currentLine.toString()));
+            gc.fillText(currentLine.toString(), 0, y);
+            y += FONT_SIZE + 5;
+        }
+
+        updateCursorBasedOnWrappedLines();
+
+        if (cursorVisible) {
+            gc.setStroke(Color.DARKGRAY);
+            gc.strokeLine(cursorX, cursorY, cursorX, cursorY + FONT_SIZE);
+        }
+    }
+
+    public void setTextChangeListener(TextChangeListener listener) {
         this.textChangeListener = listener;
     }
 
-    private void handleTextInput(char typedChar){
-        if (Character.isLetterOrDigit(typedChar) || Character.isWhitespace(typedChar)){
-            try{
-                rope.append(Character.toString(typedChar));
-
-                if (fontMetrics != null) {
-                    updateCursorIncrementX(fontMetrics.stringWidth(Character.toString(typedChar)));
-                }
-
-                if (textChangeListener != null){
-                    textChangeListener.onTextChanged(rope.getRopeData());
-                }
-
-                repaint();
-
-            } catch (Exception e) {
-                System.err.println("Error handling text input: " + e.getMessage());
-            }
-        }
+    private double getTextWidth(String text) {
+        textMetrics.setText(text);
+        textMetrics.setFont(Font.font("Geist Light", FONT_SIZE));
+        return textMetrics.getLayoutBounds().getWidth();
     }
 
-    private void handleBackSpace() {
-        if (!rope.isEmpty()){
-            try{
-                String lastChar = rope.peakLastChar();
-                System.out.println(lastChar);
-
-                rope.backspace();
-                System.out.println("YES");
-
-                if (fontMetrics != null && !lastChar.isEmpty()) {
-                    updateCursorDecrementX(fontMetrics.stringWidth(lastChar));
-                }
-
-                if (textChangeListener != null) {
-                    textChangeListener.onTextChanged(rope.getRopeData());
-                }
-
-                repaint();
-            } catch (StringIndexOutOfBoundsException e) {
-                System.err.println("Index out of bound while trying to backspace: " + e.getMessage());
-            }
-
-            catch (Exception e){
-                System.err.println("Error handling backspace: " + e.getMessage());
-            }
-        }
-    }
-
-    private void renderText(Graphics g) {
-        System.out.println(rope.getRopeData());
-
-        Graphics2D g2d = (Graphics2D) g;
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setFont(UiConstants.getGeistLight(fontSize));
-        g2d.setColor(UiConstants.TEXT_AREA_COLOR);
-
-        fontMetrics = g.getFontMetrics();
-        int lineHeight = fontMetrics.getHeight();
-        int availableWidth = getWidth();
-
-//        System.out.println(availableWidth);
-        int totalStringSize = rope.getStringSize();
-        String[] words = rope.getRopeData().split(" ");
-        StringBuilder currentLine = new StringBuilder();
-
-//        StringBuilder textUpToCursor = new StringBuilder();
-        int y = lineHeight;
-        int totalChars = 0;
-
-        for (String word : words) {
-            int wordWidth = fontMetrics.stringWidth(word + " ");
-            int lineWidth = fontMetrics.stringWidth(currentLine.toString());
-
-            if (lineWidth + wordWidth > availableWidth) {
-                System.out.println("Wrapped");
-
-                // Draw the current line
-                g.drawString(currentLine.toString(), 0, y);
-
-                // Update cursor position if it's in this line
-                if (totalChars + currentLine.length() >= totalStringSize) {
-                    cursorX = fontMetrics.stringWidth(currentLine.toString());
-                    cursorY = y - lineHeight + 1;
-                }
-
-                // Move to next line
-                y += lineHeight;
-                currentLine = new StringBuilder(word + " ");
-
-            } else {
-                currentLine.append(word).append(" ");
-            }
-
-            totalChars += word.length() + 1;
-        }
-
-        // Draw the last line
-        if (!currentLine.isEmpty()) {
-            g.drawString(currentLine.toString(), 0, y);
-
-            // Update cursor position if it's in the last line
-            if (totalChars >= totalStringSize) {
-                cursorX = fontMetrics.stringWidth(currentLine.toString());
-                cursorY = y - lineHeight + 2;
-            }
-        }
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        renderText(g);
-
-        // Draw cursor
-        if (cursorVisible) {
-            g.setColor(Color.DARK_GRAY);
-            g.fillRect(cursorX, cursorY, 1, fontMetrics.getHeight());
-        }
-    }
-
-    public CustomTextArea(Rope rope){
-
-//        timer for the cursor
-//        blinking effect
-
-        new Timer(350, e -> {
-            cursorVisible = !cursorVisible;
-            repaint();
-        }).start();
-
-        this.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-//                TODO use this method for substring selection
-
-                System.out.println(e.getPoint());
-            }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-//              TODO use this to set the layout active and ready it up for text editing
-                int pointX = e.getX();
-                int pointY = e.getY();
-
-//                updateCursorPosition(pointX, pointY);
-                repaint();
-
-            }
-        });
-
-        this.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyTyped(KeyEvent e) {
-                handleTextInput(e.getKeyChar());
-            }
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                switch (e.getKeyCode()){
-                    case KeyEvent.VK_BACK_SPACE -> handleBackSpace();
-                    case KeyEvent.VK_UP -> updateCursorDecrementY();
-
-                }
-
-            }
-
-            @Override
-            public void keyReleased(KeyEvent e) {
-//                TODO do more research on this interface
-
-                int typedKeyCode = e.getKeyCode();
-
-                if (typedKeyCode == KeyEvent.VK_BACK_SPACE) {
-                    repaint();
-                }
-            }
-        });
-
-    }
-
-    private void updateCursorPosition(int pointX, int pointY) {
-        FontMetrics fontMetrics = getFontMetrics(getFont());
-        int lineHeight = fontMetrics.getHeight();
-        int availableWidth = getWidth();
-
-        // Calculate which line the click corresponds to
-        int lineNumber = pointY / lineHeight;
-//        int lineStartX = 0;
-        cursorY = lineHeight * lineNumber;
-
-        String[] words = rope.getRopeData().split(" ");
-        StringBuilder line = new StringBuilder();
-        int y = lineHeight;
-
-        for (String word : words) {
-            int wordWidth = fontMetrics.stringWidth(word);
-            int lineWidth = fontMetrics.stringWidth(line.toString());
-
-            if (lineWidth + wordWidth > availableWidth) {
-                y += lineHeight;
-                line = new StringBuilder(word + " ");
-            } else {
-                line.append(word).append(" ");
-            }
-
-            cursorX = lineWidth + wordWidth;
-            if (y > pointX) {
-                break;
-            }
-
-            cursorY = y;
-        }
-    }
-
-    private void updateCursorIncrementX(int charWidth){
-        if (cursorX == 0 && cursorY == 0) {
-            return;
-        }
-
-        int fontHeight = fontMetrics.getHeight();
-        int availableWidth = getWidth();
-
-        if (cursorX + charWidth > getWidth()) {
-            cursorY += fontMetrics.getHeight();
+    private void updateCursorIncrementX(double width) {
+        if (cursorX + width >= getWidth()) {
             cursorX = 0;
+            updateCursorIncrementY();
         } else {
-            cursorX += charWidth;
-        }
-
-    }
-
-    private void updateCursorIncrementY(){
-        int fontHeight = fontMetrics.getHeight();
-        int availableWidth = getWidth();
-
-//        TODO  scroll thingy if the y axis is out of visible range
-
-        cursorY += fontHeight;
-    }
-
-    private void updateCursorDecrementY(){
-        int fontHeight = fontMetrics.getHeight();
-
-        cursorY -= fontHeight;
-    }
-
-
-    private void updateCursorDecrementX(int charWidth){
-        System.out.println(charWidth);
-
-        if (cursorX == 0 && cursorY == 0){
-            return;
-        }
-
-        int fontHeight = fontMetrics.getHeight();
-
-        if (cursorX - charWidth < 0){
-            cursorX = Math.max(0, cursorY - fontHeight);
-            cursorY -= getLastLineWidth();
-
-        }else {
-            cursorX -= charWidth;
+            cursorX += width;
         }
     }
 
-    private int getLastLineWidth(){
+    private void updateCursorIncrementY() {
+        cursorY += FONT_SIZE + 5;
+    }
+
+    private void updateCursorDecrementY() {
+        if (cursorY > 0) {
+            cursorY = Math.max(0, cursorY - (FONT_SIZE + 5));
+        }
+    }
+
+    private void updateCursorDecrementX(double width) {
+        if (cursorX - width < 0 && cursorY > 0) {
+            cursorY -= FONT_SIZE + 5;
+            String[] lines = rope.getRopeData().split("\n");
+            int currentLine = (int) (cursorY / (FONT_SIZE + 5));
+            if (currentLine >= 0 && currentLine < lines.length) {
+                cursorX = getTextWidth(lines[currentLine]);
+            } else {
+                cursorX = 0;
+            }
+        } else {
+            cursorX = Math.max(0, cursorX - width);
+        }
+    }
+
+    private double getLastLineWidth() {
         if (rope.isEmpty()) return 0;
-
         String[] lines = rope.getRopeData().split("\n");
-        String lastLine = lines[lines.length - 1];
-        return fontMetrics.stringWidth(lastLine);
+        return getTextWidth(lines[lines.length - 1]);
     }
 
-    public void setText(String customText){
-        rope = new Rope(customText);
-    }
-
-    public int getStringSize(){
+    public int getStringSize() {
         return rope.getStringSize();
     }
 
-    @Override
-    public boolean isFocusable() {
-        return true;
+    private void notifyTextChanged() {
+        if (textChangeListener != null) {
+            textChangeListener.onTextChanged(rope.getRopeData());
+        }
     }
 
+    private void updateCursorBasedOnWrappedLines() {
+        int totalChars = 0;
+        String text = rope.getRopeData();
 
+        for (LineInfo line : wrappedLines) {
+            int lineLength = line.content.length();
+            if (totalChars + lineLength >= text.length()) {
+                cursorX = getTextWidth(text.substring(totalChars));
+                cursorY = line.y - FONT_SIZE;
+                break;
+            }
+            totalChars += lineLength;
+        }
+    }
+
+    private void updateCursorPosition(double clickX, double clickY) {
+        for (LineInfo line : wrappedLines) {
+            if (Math.abs(line.y - FONT_SIZE - clickY) < (double) (FONT_SIZE + 5) / 2) {
+                double totalWidth = 0;
+                String currentLine = line.content;
+
+                for (int i = 0; i < currentLine.length(); i++) {
+                    double charWidth = getTextWidth(String.valueOf(currentLine.charAt(i)));
+                    if (totalWidth + (charWidth / 2) > clickX) {
+                        cursorX = totalWidth;
+                        cursorY = line.y - FONT_SIZE;
+                        return;
+                    }
+                    totalWidth += charWidth;
+                }
+                cursorX = totalWidth;
+                cursorY = line.y - FONT_SIZE;
+                return;
+            }
+        }
+    }
 }
