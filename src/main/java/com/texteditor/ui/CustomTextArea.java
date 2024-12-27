@@ -63,6 +63,24 @@ public class CustomTextArea extends Canvas {
         timeline.play();
     }
 
+    // Helper functions to calculate the index for inserting into the Rope
+    private int calculatePositionToInsert() {
+        int posToInsert = 0;
+        int currentLine = (int)(cursorY / (FONT_SIZE + 5));
+
+        // Count characters including newlines up to current line
+        for (int i = 0; i < wrappedLines.size() && i < currentLine; i++) {
+            posToInsert += wrappedLines.get(i).content.length();
+            if (!wrappedLines.get(i).content.endsWith("\n")) {
+                posToInsert++; // Add newline character count
+            }
+        }
+
+        // Add characters on current line up to cursor
+        posToInsert += getCharsUpToX();
+        return posToInsert;
+    }
+
     // Sets up event handlers for keyboard and mouse inputs
     private void setupEventHandlers() {
 
