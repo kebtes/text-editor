@@ -1,4 +1,4 @@
-# Text Editor FROM SCRATCH
+# Text Editor FROM SCRATCH | [taken from]([url](https://austinhenley.com/blog/challengingprojects.html))
 
 ## Key Features
 
@@ -22,7 +22,7 @@
     - **New Document Creation**: Start with a blank document to create new files from scratch.
     - **Text Editing**: Basic features like typing, deleting, and formatting text are available to the user.
 
-## Additional Functionalities Currently Under Implementations
+## Additional Functionalities Currently Under Implementation
 - **Search and Replace**
 - **More File Saving Formats**
 - **Multiple File Handling**
