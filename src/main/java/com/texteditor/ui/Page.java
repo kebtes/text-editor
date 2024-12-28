@@ -25,7 +25,7 @@ public class Page {
         body.setStyle("-fx-background-color: white;");
 
         Label titleLabel = new Label("TITLE");
-        titleLabel.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 9px; -fx-text-fill: #666666;");
+        titleLabel.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 10px; -fx-text-fill: #666666;");
 
         Label documentTitle = new Label("Sample Document Title");
         documentTitle.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #585BFF;");
@@ -54,7 +54,6 @@ public class Page {
         primaryStage.setTitle("Text Editor");
         primaryStage.show();
 
-        // Request focus for the text area
         textArea.requestFocus();
     }
 
