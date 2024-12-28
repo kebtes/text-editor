@@ -11,6 +11,7 @@ public class Rope {
         root = new RopeNode(text != null ? text : "");
     }
 
+    @SuppressWarnings("all")
     public Rope(RopeNode node){
         this.root = node;
     }
@@ -111,7 +112,7 @@ public class Rope {
         }
 
         RopeNode[] rope1 = split(startingIndex);
-        RopeNode[] rope2 = split(endingIndex + 1);
+        RopeNode[] rope2 = split(endingIndex);
 
         root = concat(rope1[0], rope2[1]);
     }
@@ -246,6 +247,7 @@ public class Rope {
      *
      * @return The last character as a string, or an empty string if the Rope is empty.
      */
+    @Deprecated
     public String peakLastChar(){
         if (isEmpty()){
             return "";
@@ -253,6 +255,12 @@ public class Rope {
 
         String data = getRopeData();
         return data.substring(Math.max(0, data.length() - 1));
+    }
+
+    public String peakLastChar(int cursor) {
+        if (cursor == 0) return "";
+
+        return substring(cursor - 1, cursor).getRopeData();
     }
 
     /**
@@ -281,6 +289,34 @@ public class Rope {
         }
 
         return lastWord.toString();
+    }
+
+    /**
+     * Retrieves the characters of the last "word" before the given cursor position in the text,
+     * stopping at a space (' ') or newline ('\n') character.
+     *
+     * @param cursor The position in the text where the search for the last word begins (inclusive).
+     * @return A string representing the last sequence of non-whitespace characters (a "word")
+     *         found before the given cursor position. If the text is empty or no characters exist
+     *         before the cursor, it returns an empty string ("").
+     */
+    public String peakLastCharsBeforeCursor(int cursor) {
+        if (isEmpty()) {
+            return "";
+        }
+
+        StringBuilder lastWordFromCursor = new StringBuilder();
+
+        for (int idx = cursor; idx >= 0; idx--) {
+            char idxChar = search(idx);
+
+            if (idxChar == ' ' || idxChar == '\n') break;
+
+            lastWordFromCursor.append(idxChar);
+        }
+
+        lastWordFromCursor.reverse();
+        return lastWordFromCursor.toString();
     }
 
     public int getStringSize(){
