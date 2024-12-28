@@ -7,8 +7,6 @@ public class Constants {
     public static Color FOOTER_COLOR = Color.web("14191F");
     public static Color FONT_WHITE = Color.WHITE;
 
-    public static String ICON_PATH = "Text Editor\\src\\main\\java\\com\\texteditor\\ui\\assets\\icon.png";
-
     public static String getCssColor(Color color) {
         return String.format("#%02X%02X%02X", (int)(color.getRed() * 255), (int)(color.getGreen() * 255), (int)(color.getBlue() * 255));
     }
