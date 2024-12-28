@@ -4,6 +4,8 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.*;
 import org.junit.jupiter.params.provider.*;
 
+import java.awt.desktop.SystemSleepEvent;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class RopeTest {
@@ -204,5 +206,108 @@ class RopeTest {
         Rope rope = new Rope("Hello");
         rope.delete(0, 4);
         assertEquals("", rope.getRopeData());
+    }
+
+    @Test
+    void append() {
+        Rope rope = new Rope("a");
+        assertEquals("a", rope.getRopeData());
+
+//        System.out.println(rope.getRopeData());
+
+        rope.append("b");
+        assertEquals("ab", rope.getRopeData());
+
+//        System.out.println(rope.getRopeData());
+
+        rope.append("c");
+
+//        System.out.println(rope.getRopeData());
+
+        assertEquals("abc", rope.getRopeData());
+    }
+
+    @Test
+    public void testAppend() {
+        Rope rope = new Rope("Hello World");
+        rope.append(" X");
+        assertEquals("Hello World X", rope.getRopeData());
+    }
+
+    @Test
+    void splitLastIndex() {
+        Rope rope = new Rope("Hello");
+        RopeNode[] splitted = rope.split(rope.getStringSize());
+
+        assertEquals("Hello", splitted[0].getData());
+        assertEquals("", splitted[1].getData());
+    }
+
+    @Test
+    void splitFirstIndex() {
+        Rope rope = new Rope("Hello");
+        RopeNode[] splitted = rope.split(0);
+
+        assertEquals("", splitted[0].getData());
+        assertEquals("Hello", splitted[1].getData());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "Hello, Hell",
+            "jjlkjj, jjlkj"
+
+    })
+    void testBackspace(String input, String expectedOutput) {
+        Rope rope = new Rope(input);
+        rope.backspace();
+        assertEquals(expectedOutput, rope.getRopeData());
+    }
+
+    @Test
+    void testLastWord() {
+        Rope rope = new Rope("Hello World");
+        assertEquals("World", rope.peakLastWord());
+
+    }
+
+    @Test
+    void testBackspaceAtCusror() {
+        Rope rope = new Rope("Hello");
+        rope.backspace(1);
+        assertEquals("ello", rope.getRopeData());
+    }
+
+    @Test
+    void testSub() {
+        Rope rope = new Rope("What");
+        assertEquals("H", rope.substring(3, 4).getRopeData());
+    }
+
+
+    @Test
+    void testPeakLast() {
+        Rope rope = new Rope("What");
+        assertEquals("t", rope.peakLastChar(4));
+    }
+
+    @Test
+    void testLastWordCursor() {
+        Rope rope = new Rope("What have you done");
+        assertEquals("hav", rope.peakLastCharsBeforeCursor(8));
+    }
+
+    @Test
+    void testDelete() {
+        Rope rope = new Rope("Hello");
+        rope.delete(0, 2);
+        assertEquals("llo", rope.getRopeData());
+    }
+
+    @Test
+    void testEnterKey() {
+        Rope rope = new Rope("Hello\nWorld");
+        System.out.println(rope.getRopeData());
+        System.out.println(rope.getRopeData().length());
     }
 }
