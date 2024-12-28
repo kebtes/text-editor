@@ -1,8 +1,10 @@
 package com.texteditor.ui;
 
-import com.texteditor.editor.Rope;
+import com.texteditor.editor.*;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -11,6 +13,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.KeyCode;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -27,6 +30,8 @@ public class CustomTextArea extends Canvas {
     private TextChangeListener textChangeListener;
     private final Text textMetrics;
     private final List<LineInfo> wrappedLines = new ArrayList<>();
+
+    CommandManager commandManager = new CommandManager();
 
     // Interface for listening to the text change
     public interface TextChangeListener {
@@ -64,26 +69,23 @@ public class CustomTextArea extends Canvas {
     }
 
     // Helper functions to calculate the index for inserting into the Rope
-    private int calculatePositionToInsert() {
+    private int calculateIndexPosition() {
+        // Calculate the position to insert
+        // Could be in the middle
         int posToInsert = 0;
-        int currentLine = (int)(cursorY / (FONT_SIZE + 5));
 
-        // Count characters including newlines up to current line
-        for (int i = 0; i < wrappedLines.size() && i < currentLine; i++) {
-            posToInsert += wrappedLines.get(i).content.length();
-            if (!wrappedLines.get(i).content.endsWith("\n")) {
-                posToInsert++; // Add newline character count
-            }
+        // all chars of every line except this current one
+        for (int idx = 0; idx < cursorY / FONT_SIZE - 1; idx ++) {
+            posToInsert += getCharsAtY(idx);
         }
 
-        // Add characters on current line up to cursor
+        // add all the chars on the current line up until the cursor
         posToInsert += getCharsUpToX();
         return posToInsert;
     }
 
     // Sets up event handlers for keyboard and mouse inputs
     private void setupEventHandlers() {
-
         // handles when a character is typed
         addEventHandler(KeyEvent.KEY_TYPED, event -> {
             String character = event.getCharacter();
@@ -93,19 +95,7 @@ public class CustomTextArea extends Canvas {
                     || Character.isWhitespace(character.charAt(0)) || validCharacters.contains(character)))
                      {
 
-                // Calculate the position to insert
-                // Could be in the middle
-                int posToInsert = 0;
-
-                // all chars of every line except this current one
-                for (int idx = 0; idx < cursorY / FONT_SIZE - 1; idx ++) {
-                    posToInsert += getCharsAtY(idx);
-                }
-
-                // add all the chars on the current line up until the cursor
-                posToInsert += getCharsUpToX();
-
-                rope.insert(posToInsert, character);
+                rope.insert(calculateIndexPosition(), character);
                 updateCursorIncrementX(getTextWidth(character));
                 notifyTextChanged();
                 renderContent();
@@ -113,45 +103,62 @@ public class CustomTextArea extends Canvas {
         });
 
         addEventHandler(KeyEvent.KEY_PRESSED, event -> {
-            switch (event.getCode()) {
-                case BACK_SPACE -> {
-                    if (!rope.isEmpty()) {
-                        String lastChar = rope.peakLastChar();
-                        rope.backspace(getCharsUpToX());
-                        updateCursorDecrementX(getTextWidth(lastChar));
+            // KeyCodeCombination to manage shortcuts like Undo (Ctrl+Z) and Redo (Ctrl+R)
+            KeyCombination undoCombination = new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN);
+            KeyCombination redoCombination = new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN);
+
+            if (undoCombination.match(event)) {
+                Command undoCommand = commandManager.undo();
+                updateCursorAfterUndoRedo(undoCommand);
+                renderContent();
+            }
+            else if (redoCombination.match(event)) {
+                Command redoCommand = commandManager.redo();
+                updateCursorAfterUndoRedo(redoCommand);
+                renderContent();
+            }
+            else {
+                switch (event.getCode()) {
+                    case BACK_SPACE -> {
+                        if (!rope.isEmpty() && calculateIndexPosition() > 0) {
+                            String lastChar = rope.peakLastChar(calculateIndexPosition());
+                            Command backspaceCommand = new DeleteCommand(rope, calculateIndexPosition() - 1, calculateIndexPosition());
+                            commandManager.executeCommand(backspaceCommand);
+                            updateCursorDecrementX(getTextWidth(lastChar));
+                            notifyTextChanged();
+                            renderContent();
+                        }
+                    }
+                    case ENTER -> {
+                        rope.insert(calculateIndexPosition(), "\n");
+                        cursorX = 0;
+                        updateCursorIncrementY();
                         notifyTextChanged();
                         renderContent();
                     }
-                }
-                case ENTER -> {
-                    rope.append("\n");
-                    cursorX = 0;
-                    updateCursorIncrementY();
-                    notifyTextChanged();
-                    renderContent();
-                }
-                case UP -> {
-                    updateCursorDecrementY();
-                    renderContent();
-                }
-                case DOWN -> {
-                    updateCursorIncrementY();
-                    renderContent();
-                }
-                case LEFT -> {
-                    if (cursorX > 0) {
-                        int pos = getCharsUpToX();
-                        updateCursorDecrementX(getTextWidth(rope.substring(pos - 1, pos).getRopeData()));
+                    case UP -> {
+                        updateCursorDecrementY();
+                        renderContent();
                     }
-                }
-                case RIGHT -> {
-                    int pos = getCharsUpToX();
+                    case DOWN -> {
+                        updateCursorIncrementY();
+                        renderContent();
+                    }
+                    case LEFT -> {
+                        if (cursorX > 0) {
+                            int pos = getCharsUpToX();
+                            updateCursorDecrementX(getTextWidth(rope.substring(pos - 1, pos).getRopeData()));
+                        }
+                    }
+                    case RIGHT -> {
+                        int pos = getCharsUpToX();
 
-                    if (cursorX / getTextWidth("A") < rope.getStringSize()) {
-                        String nextChar = rope.substring(pos, pos + 1).getRopeData();
-                        System.out.println(nextChar);
+                        if (cursorX / getTextWidth("A") < rope.getStringSize()) {
+                            String nextChar = rope.substring(pos, pos + 1).getRopeData();
+                            System.out.println(nextChar);
 
-                        updateCursorIncrementX(getTextWidth(nextChar));
+                            updateCursorIncrementX(getTextWidth(nextChar));
+                        }
                     }
                 }
             }
@@ -181,9 +188,8 @@ public class CustomTextArea extends Canvas {
 
     // Renders the text content and cursor on the canvas
     private void renderContent() {
-        for (LineInfo l: wrappedLines) {
-            System.out.println(l.content.length());
-        }
+//        System.out.println(rope.getRopeData());
+        System.out.println(calculateIndexPosition());
 
         GraphicsContext gc = getGraphicsContext2D();
         gc.clearRect(0, 0, getWidth(), getHeight());
@@ -247,20 +253,21 @@ public class CustomTextArea extends Canvas {
 
     // Moves the X position of the cursor to the right
     private void updateCursorIncrementX(double width) {
-        if (cursorX + width > getWidth() && cursorY + FONT_SIZE + 5 < getHeight()) {
-            cursorX = 0;
+        if (cursorX + width > getWidth()) {
+            String lastChar = rope.peakLastCharsBeforeCursor(calculateIndexPosition());
+            cursorX = getTextWidth(lastChar);
             updateCursorIncrementY();
         } else {
             cursorX += width;
         }
     }
 
-    // Moves the Y position of the cursor to the right
+    // Moves the Y position of the cursor down one step
     private void updateCursorIncrementY() {
         cursorY += FONT_SIZE + 5;
     }
 
-    // Moves the Y position of the cursor to the left
+    // Moves the Y position of the cursor up one step
     private void updateCursorDecrementY() {
         if (cursorY > 0) {
             cursorY = Math.max(0, cursorY - (FONT_SIZE + 5));
@@ -302,6 +309,22 @@ public class CustomTextArea extends Canvas {
         if (textChangeListener != null) {
             textChangeListener.onTextChanged(rope.getRopeData());
         }
+    }
+
+    /**
+     * Adjusts the cursor position after a command (undo/redo).
+     *
+     * @param command The command that was undone or redone.
+     */
+    private void updateCursorAfterUndoRedo(Command command) {
+        if (command instanceof DeleteCommand deleteCommand) {
+            String deletedText = deleteCommand.getDeletedText();
+            updateCursorIncrementX(getTextWidth(deletedText));
+        } else if (command instanceof InsertCommand insertCommand) {
+            String insertedText = insertCommand.getInsertedText();
+            updateCursorDecrementX(getTextWidth(insertedText));
+        }
+
     }
 
     private void updateCursorPosition(double clickX, double clickY) {
