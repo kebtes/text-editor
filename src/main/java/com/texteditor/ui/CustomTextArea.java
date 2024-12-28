@@ -1,6 +1,10 @@
 package com.texteditor.ui;
 
 import com.texteditor.editor.*;
+import com.texteditor.editor.commands.Command;
+import com.texteditor.editor.commands.CommandManager;
+import com.texteditor.editor.commands.DeleteCommand;
+import com.texteditor.editor.commands.InsertCommand;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCodeCombination;
@@ -70,16 +74,20 @@ public class CustomTextArea extends Canvas {
 
     // Helper functions to calculate the index for inserting into the Rope
     private int calculateIndexPosition() {
-        // Calculate the position to insert
-        // Could be in the middle
         int posToInsert = 0;
+        String content = rope.getRopeData();
+        int currentLine = (int)(cursorY / (FONT_SIZE + 5));
 
-        // all chars of every line except this current one
-        for (int idx = 0; idx < cursorY / FONT_SIZE - 1; idx ++) {
-            posToInsert += getCharsAtY(idx);
+        // Count characters up to the current line
+        int lineCount = 0;
+        for(int i = 0; i < content.length() && lineCount < currentLine; i++) {
+            if(content.charAt(i) == '\n') {
+                lineCount++;
+            }
+            posToInsert++;
         }
 
-        // add all the chars on the current line up until the cursor
+        // Add characters on current line up to cursor
         posToInsert += getCharsUpToX();
         return posToInsert;
     }
@@ -130,7 +138,9 @@ public class CustomTextArea extends Canvas {
                         }
                     }
                     case ENTER -> {
-                        rope.insert(calculateIndexPosition(), "\n");
+                        int insertPos = calculateIndexPosition();
+                        Command insertCommand = new InsertCommand(rope, "\n", insertPos);
+                        commandManager.executeCommand(insertCommand);
                         cursorX = 0;
                         updateCursorIncrementY();
                         notifyTextChanged();
