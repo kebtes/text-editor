@@ -81,7 +81,6 @@ public class Rope {
      */
     public void insert(int indexToInsert, String newString){
         if (indexToInsert < 0 || indexToInsert > getStringSize()){
-            System.out.println(indexToInsert);
             throw new IndexOutOfBoundsException("IndexToInsert out of bounds.");
         }
 
