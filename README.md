@@ -1,5 +1,5 @@
 # Text Editor FROM SCRATCH 
-[taken from](https://austinhenley.com/blog/challengingprojects.html)
+Taken from > [Challenging projects every programmer should try](https://austinhenley.com/blog/challengingprojects.html)
 
 ## Key Features
 
