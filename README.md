@@ -1,4 +1,5 @@
-# Text Editor FROM SCRATCH | [taken from]([url](https://austinhenley.com/blog/challengingprojects.html))
+# Text Editor FROM SCRATCH 
+[taken from]([url](https://austinhenley.com/blog/challengingprojects.html))
 
 ## Key Features
 
