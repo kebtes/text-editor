@@ -1,39 +1,66 @@
 package com.texteditor.ui;
 
 import com.texteditor.editor.Rope;
+import com.texteditor.editor.io.FileIO;
+import com.texteditor.editor.io.FileType;
+
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.geometry.Insets;
 
+import java.io.File;
+
 public class Page {
     private static final int WINDOW_WIDTH = 800;
-    private static final int WINDOW_HEIGHT = 838;
+    private static final int WINDOW_HEIGHT = 600;
     private final Label characterCount;
 
-    public Page(Rope rope, Stage primaryStage) {
+    Rope rope;
 
+    TextField documentTitle;
+
+    public Page(Rope rope, Stage primaryStage) {
+        this.rope = rope;
         BorderPane root = new BorderPane();
 
-        MenuBar menuBar = createMenuBar();
+        Image icon = new Image(getClass().getResource("/assets/icon.png").toExternalForm());
+        primaryStage.getIcons().add(icon);
+
+        MenuBar menuBar = createMenuBar(primaryStage);
         root.setTop(menuBar);
 
         VBox body = new VBox(10);
         body.setPadding(new Insets(20));
-        body.setStyle("-fx-background-color: white;");
+        body.setBackground(new Background(new BackgroundFill(Constants.BACKGROUND_COLOR, null, null)));
 
         Label titleLabel = new Label("TITLE");
-        titleLabel.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 10px; -fx-text-fill: #666666;");
+        titleLabel.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 10px; -fx-text-fill: #ffffff;");
 
-        Label documentTitle = new Label("Sample Document Title");
-        documentTitle.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #585BFF;");
-
+        documentTitle = new TextField("File name");
+        documentTitle.setStyle(
+                "-fx-font-family: 'Geist'; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #ffffff !important; " +  // Ensure it takes priority
+                        "-fx-border-width: 0; " +
+                        "-fx-background-color: transparent;" +
+                        "-fx-padding: 0;"
+        );
         CustomTextArea textArea = new CustomTextArea(rope);
 
         BorderPane footer = new BorderPane();
-        footer.setStyle("-fx-background-color: #585BFF; -fx-padding: 10px;");
+        footer.setStyle("-fx-background-color: " + Constants.getCssColor(Constants.FOOTER_COLOR) + "; -fx-padding: 10px;");
 
         characterCount = new Label(textArea.getStringSize() + " chars");
         characterCount.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 11px; -fx-text-fill: white;");
@@ -57,22 +84,32 @@ public class Page {
         textArea.requestFocus();
     }
 
-    private MenuBar createMenuBar() {
+    private MenuBar createMenuBar(Stage primaryStage) {
         MenuBar menuBar = new MenuBar();
-        menuBar.setStyle("-fx-background-color: white;");
+        menuBar.setStyle("-fx-background-color: " + Constants.getCssColor(Constants.BACKGROUND_COLOR) + " !important ;");
 
-        UiConstants.menuBarItems.forEach((menuString, menuItems) -> {
-            Menu menu = new Menu(menuString);
-            menu.setStyle("-fx-font-family: 'Geist'; -fx-font-size: 12px;");
+        Menu fileMenu = new Menu("File");
+        fileMenu.setStyle("-fx-font-family: 'Arial'; -fx-font-size: 12px; -fx-text-fill: white;");
 
-            menuItems.forEach(itemString -> {
-                MenuItem item = new MenuItem(itemString);
-                menu.getItems().add(item);
-            });
+        MenuItem saveItem = new MenuItem("Save");
+        saveItem.setOnAction(event -> showDirectoryChooser(primaryStage));
 
-            menuBar.getMenus().add(menu);
-        });
+        fileMenu.getItems().add(saveItem);
+
+        menuBar.getMenus().add(fileMenu);
 
         return menuBar;
+    }
+
+    private void showDirectoryChooser(Stage stage) {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Choose Directory");
+        directoryChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+
+        File selectedDirectory = directoryChooser.showDialog(stage);
+
+        if (selectedDirectory != null) {
+            FileIO.saveFile(selectedDirectory.getAbsolutePath(), rope, FileType.TXT, documentTitle.getText());
+        }
     }
 }
